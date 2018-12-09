@@ -28,6 +28,14 @@ public class SwaggerNode {
         this.baseUrl = baseUrl;
     }
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public String getName() {
         return name;
     }

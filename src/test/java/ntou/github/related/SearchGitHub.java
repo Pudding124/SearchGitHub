@@ -36,7 +36,7 @@ public class SearchGitHub {
 
     @Test
     public void readFinishFile(){
-        int fileNumber = 200;
+        int fileNumber = 288;
         File sDocFolder = new File("./src/main/resources/finish");
         for (String serviceFile : sDocFolder.list()) {
             if(fileNumber == 0) break;
@@ -67,26 +67,31 @@ public class SearchGitHub {
     public void addGitHubNode(String title){
 
         for(APIEndpoint apiEndpoint : swaggerNodeRepository.findByAPIEndpoint(title)){
-            try {
-                String endpoint = apiEndpoint.getApiEndpoint();
-                boolean flag = true;
-                for(int i = 0;i < endpoint.length();i++){
-                    if(endpoint.substring(i, i+1).equals("{") || endpoint.substring(i, i+1).equals("}")){
-                        flag = false;
-                        break;
-                    }
-                }
-                if(flag){
-                    if(apiEndpoint.getApiEndpoint() != null){
-                        log.info("API Enpoint : {}", endpoint);
-                        webController.searchCode(endpoint, apiEndpoint);
-                    }else{
-                        log.info("有 API Endpoint 是空值");
-                    }
-                }
-            } catch (InterruptedException e) {
-                log.info("Search Code Error");
+            log.info("API Enpoint Before :{}", apiEndpoint.getApiEndpoint());
+            String endpoint = apiEndpoint.getApiEndpoint().replaceAll("[{}]", "");
+
+            if(apiEndpoint.getApiEndpoint() != null){
+                log.info("API Enpoint After :{}", endpoint);
+                webController.searchCode(endpoint, apiEndpoint);
+            }else{
+                log.info("有 API Endpoint 是空值");
             }
+
+//                boolean flag = true;
+//                for(int i = 0;i < endpoint.length();i++){
+//                    if(endpoint.substring(i, i+1).equals("{") || endpoint.substring(i, i+1).equals("}")){
+//                        flag = false;
+//                        break;
+//                    }
+//                }
+//                if(flag){
+//                    if(apiEndpoint.getApiEndpoint() != null){
+//                        log.info("API Enpoint : {}", endpoint);
+//                        webController.searchCode(endpoint, apiEndpoint);
+//                    }else{
+//                        log.info("有 API Endpoint 是空值");
+//                    }
+//                }
         }
     }
 
