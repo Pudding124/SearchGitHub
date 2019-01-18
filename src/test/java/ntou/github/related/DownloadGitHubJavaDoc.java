@@ -7,11 +7,11 @@ import ntou.github.related.repository.APIEndpointRepository;
 import ntou.github.related.repository.SwaggerNodeRepository;
 import ntou.github.related.web.WebController;
 import org.apache.commons.codec.binary.Base64;
-import org.json.JSONArray;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,16 +20,14 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.*;
-import java.net.URL;
-import java.net.URLConnection;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -52,7 +50,7 @@ public class DownloadGitHubJavaDoc {
 
     @Test
     public void readGuruFiles(){
-        int fileNumber = 1;
+        int fileNumber = 245;
         File sDocFolder = new File("./src/main/resources/finishsearch");
         for (String serviceFile : sDocFolder.list()) {
             if(fileNumber == 0) break;
@@ -88,11 +86,15 @@ public class DownloadGitHubJavaDoc {
 
             for(APIEndpoint apiEndpoint : swaggerNodeRepository.findByAPIEndpoint(swaggerName)) {
                 String api = apiEndpoint.getApiEndpoint();
-                String folderName = swaggerName.replaceAll("/", "");
-                File dir_file = new File("/home/mingjen/Desktop/DownloadGitHubJavaDoc/"+folderName);
+                Long apiId = apiEndpoint.getId();
+                //String folderName = swaggerName.replaceAll("/", "");
 
-                if(!dir_file.exists()) {
-                    dir_file.mkdir();
+                if(apiEndpointRepository.findByGitHubNode(api).size() > 0) {
+                    File dir_file = new File("/home/mingjen/Desktop/DownloadGitHubJavaDoc/"+apiId.toString());
+
+                    if(!dir_file.exists()) {
+                        dir_file.mkdir();
+                    }
                 }
 
                 for(GithubNode githubNode : apiEndpointRepository.findByGitHubNode(api)) {
@@ -105,7 +107,7 @@ public class DownloadGitHubJavaDoc {
                     if(!repoFullName.equals("Pudding124/DataClassification")) {
                         String url = new String("https://api.github.com/repos/"+repoFullName+"/contents/"+javaDocumentPath);
                         while (true){
-                            if(sendRequestAndDownloadJavaDoc(id, url, javaName, folderName)) {
+                            if(sendRequestAndDownloadJavaDoc(id, url, javaName, apiId.toString())) {
                                 break;
                             }else{
                                 log.info("請求失敗，重新請求");
@@ -158,7 +160,7 @@ public class DownloadGitHubJavaDoc {
 //        bw.close();
 //    }
 
-    public boolean sendRequestAndDownloadJavaDoc(Long id, String downloadUrl, String javaName, String folderName) {
+    public boolean sendRequestAndDownloadJavaDoc(Long id, String downloadUrl, String javaName, String apiId) {
         // Auth
         String auth = PersonalInformation.GITHUB_ACCOUNT + ":" + PersonalInformation.GITHUB_PASSWORD;
         byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("US-ASCII")) );
@@ -168,7 +170,9 @@ public class DownloadGitHubJavaDoc {
 
         try {
             // Request
-            RestTemplate restTemplate = new RestTemplate();
+            RestTemplate restTemplate = new RestTemplate(getClientHttpRequestFactory());
+
+
             HttpHeaders headers = new HttpHeaders();
             headers.add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36");
             headers.add("Retry-After","3");
@@ -184,7 +188,7 @@ public class DownloadGitHubJavaDoc {
 //            String download = jsonObject.getString("download_url");
 //            response = restTemplate.exchange(download, HttpMethod.GET, requestEntity, String.class);
 
-            File file = new File("/home/mingjen/Desktop/DownloadGitHubJavaDoc/"+folderName+"/"+id+"-"+javaName);
+            File file = new File("/home/mingjen/Desktop/DownloadGitHubJavaDoc/"+apiId+"/"+id+".java");
 
             // avoid file overwrite, some swagger title is same
             if(!file.exists()) {
@@ -210,8 +214,13 @@ public class DownloadGitHubJavaDoc {
             return false;
         } catch (InterruptedException e) {
             log.info("InterruptedException :{}", e.toString());
+            return true;
+        } catch (ResourceAccessException e) {
+            log.info("time out :{}", e.getMessage());
+            return false;
         } catch (IOException e) {
             log.info("IOException :{}", e.toString());
+            return true;
         }
         return true;
     }
@@ -226,6 +235,21 @@ public class DownloadGitHubJavaDoc {
             return null;
         }
 
+    }
+
+    // RestTemplate conection time out
+    private ClientHttpRequestFactory getClientHttpRequestFactory() {
+        int timeout = 10000;
+        RequestConfig config = RequestConfig.custom()
+                .setConnectTimeout(timeout)
+                .setConnectionRequestTimeout(timeout)
+                .setSocketTimeout(timeout)
+                .build();
+        CloseableHttpClient client = HttpClientBuilder
+                .create()
+                .setDefaultRequestConfig(config)
+                .build();
+        return new HttpComponentsClientHttpRequestFactory(client);
     }
 
 }

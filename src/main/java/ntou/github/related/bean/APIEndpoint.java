@@ -28,6 +28,14 @@ public class APIEndpoint {
         this.apiEndpoint = apiEndpoint;
     }
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public String getOperation() {
         return operation;
     }
